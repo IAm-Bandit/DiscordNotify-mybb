@@ -7,9 +7,9 @@ function discord_notify_info() {
     return array(
         "name"          => "Discord Notify",
         "description"   => "Sends a message to a Discord channel when a new post is created.",
-        "website"       => "bandit.uk.to",
+        "website"       => "https://bandit.uk.to",
         "author"        => "IAm-Bandit",
-        "authorsite"    => "",
+        "authorsite"    => "https://bandit.uk.to",
         "version"       => "1.1",
         "guid"          => "",
         "compatibility" => "18*"
