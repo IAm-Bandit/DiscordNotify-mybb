@@ -10,8 +10,8 @@ function discord_thread_notify_info()
         'name' => 'Discord Thread Notification',
         'description' => 'Sends a Discord embed via webhook when a new thread is created.',
         'website' => '',
-        'author' => 'Your Name',
-        'authorsite' => '',
+        'author' => 'IAm_Bandit',
+        'authorsite' => 'https://asbprogramming.uk.to',
         'version' => '1.0',
         'compatibility' => '18*',
     ];
