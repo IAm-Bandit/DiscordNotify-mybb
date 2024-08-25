@@ -1,116 +1,124 @@
 <?php
-if(!defined("IN_MYBB")) {
-    die("Direct initialization of this file is not allowed.");
+if (!defined('IN_MYBB')) {
+    die('This file cannot be accessed directly.');
 }
 
-function discord_notify_info() {
-    return array(
-        "name"          => "Discord Notify",
-        "description"   => "Sends a message to a Discord channel when a new post is created.",
-        "website"       => "https://bandit.uk.to",
-        "author"        => "IAm-Bandit",
-        "authorsite"    => "https://bandit.uk.to",
-        "version"       => "1.1",
-        "guid"          => "",
-        "compatibility" => "18*"
-    );
+// Plugin information
+function discord_thread_notify_info()
+{
+    return [
+        'name' => 'Discord Thread Notification',
+        'description' => 'Sends a Discord embed via webhook when a new thread is created.',
+        'website' => '',
+        'author' => 'Your Name',
+        'authorsite' => '',
+        'version' => '1.0',
+        'compatibility' => '18*',
+    ];
 }
 
-function discord_notify_install() {
-    global $db;
-
-    $settings_group = array(
-        'name' => 'discord_notify',
-        'title' => 'Discord Notify Settings',
-        'description' => 'Settings for the Discord Notify plugin.',
-        'disporder' => 1,
-        'isdefault' => 0,
-    );
-    
-    $gid = $db->insert_query("settinggroups", $settings_group);
-    
-    $settings = array(
-        'discord_notify_bot_token' => array(
-            'title' => 'Discord Bot Token',
-            'description' => 'Enter your Discord bot token.',
-            'optionscode' => 'text',
-            'value' => '',
-            'disporder' => 1,
-            'gid' => $gid
-        ),
-        'discord_notify_channel_id' => array(
-            'title' => 'Discord Channel ID',
-            'description' => 'Enter the Discord channel ID where messages will be sent.',
-            'optionscode' => 'text',
-            'value' => '',
-            'disporder' => 2,
-            'gid' => $gid
-        )
-    );
-    
-    foreach($settings as $name => $setting) {
-        $setting['name'] = $name;
-        $db->insert_query('settings', $setting);
-    }
-    
-    rebuild_settings();
+// Plugin installation
+function discord_thread_notify_install()
+{
+    // Nothing to install in the database
 }
 
-function discord_notify_is_installed() {
-    global $mybb;
-    return isset($mybb->settings['discord_notify_bot_token']);
+function discord_thread_notify_is_installed()
+{
+    // Plugin is always installed if the file exists
+    return true;
 }
 
-function discord_notify_uninstall() {
-    global $db;
-    $db->delete_query('settings', "name IN ('discord_notify_bot_token', 'discord_notify_channel_id')");
-    $db->delete_query('settinggroups', "name = 'discord_notify'");
-    rebuild_settings();
+function discord_thread_notify_uninstall()
+{
+    // Nothing to uninstall
 }
 
-function discord_notify_activate() {
-    // Add any template changes or additional hooks if needed
-}
+// Hooks
+$plugins->add_hook('newthread_do_newthread_end', 'discord_thread_notify_send_webhook');
 
-function discord_notify_deactivate() {
-    // Revert any template changes or additional hooks if needed
-}
+function discord_thread_notify_send_webhook()
+{
+    global $mybb, $db, $thread, $forum;
 
-$plugins->add_hook("datahandler_post_insert_post", "discord_notify_new_post");
+    // Get the webhook URL from settings
+    $webhook_url = $mybb->settings['discord_thread_notify_webhook_url'];
 
-function discord_notify_new_post($post) {
-    global $mybb;
+    // Build the embed
+    $embed = [
+        'embeds' => [
+            [
+                'title' => $thread['subject'],
+                'description' => 'A new thread has been created!',
+                'url' => $mybb->settings['bburl'] . '/' . get_thread_link($thread['tid']),
+                'color' => 16711680, // You can change the color if you want
+                'fields' => [
+                    [
+                        'name' => 'Posted By',
+                        'value' => '[' . htmlspecialchars($mybb->user['username']) . '](' . $mybb->settings['bburl'] . '/' . get_profile_link($mybb->user['uid']) . ')',
+                        'inline' => true,
+                    ],
+                    [
+                        'name' => 'Category',
+                        'value' => '[' . htmlspecialchars($forum['name']) . '](' . $mybb->settings['bburl'] . '/' . get_forum_link($forum['fid']) . ')',
+                        'inline' => true,
+                    ]
+                ]
+            ]
+        ]
+    ];
 
-    $channel_id = $mybb->settings['discord_notify_channel_id'];
-    $bot_token = $mybb->settings['discord_notify_bot_token'];
-    $post_content = $post->data['message'];
-    $post_author = $post->post_insert_data['username'];
-
-    $embed = array(
-        "title" => "New Post Created",
-        "description" => $post_content,
-        "fields" => array(
-            array(
-                "name" => "Author",
-                "value" => $post_author,
-                "inline" => true
-            )
-        )
-    );
-
-    $data = json_encode(array("embeds" => array($embed)));
-
-    $url = "https://discord.com/api/channels/{$channel_id}/messages";
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-        "Content-Type: application/json",
-        "Authorization: Bot {$bot_token}"
-    ));
+    // Send the webhook
+    $ch = curl_init($webhook_url);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-type: application/json'));
     curl_setopt($ch, CURLOPT_POST, 1);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($embed));
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
+    curl_setopt($ch, CURLOPT_HEADER, 0);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 
     $response = curl_exec($ch);
     curl_close($ch);
+}
+
+// Settings
+function discord_thread_notify_activate()
+{
+    global $db;
+
+    $setting_group = [
+        'name' => 'discord_thread_notify',
+        'title' => 'Discord Thread Notification Settings',
+        'description' => 'Settings for the Discord Thread Notification plugin.',
+        'disporder' => 1,
+        'isdefault' => 0,
+    ];
+
+    $db->insert_query('settinggroups', $setting_group);
+    $gid = $db->insert_id();
+
+    $setting = [
+        'name' => 'discord_thread_notify_webhook_url',
+        'title' => 'Discord Webhook URL',
+        'description' => 'The Discord webhook URL to send thread notifications to.',
+        'optionscode' => 'text',
+        'value' => '',
+        'disporder' => 1,
+        'gid' => $gid,
+    ];
+
+    $db->insert_query('settings', $setting);
+    rebuild_settings();
+}
+
+function discord_thread_notify_deactivate()
+{
+    global $db;
+
+    // Delete settings
+    $db->delete_query('settings', "name = 'discord_thread_notify_webhook_url'");
+    $db->delete_query('settinggroups', "name = 'discord_thread_notify'");
+
+    rebuild_settings();
 }
 ?>
